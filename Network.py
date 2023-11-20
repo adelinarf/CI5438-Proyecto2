@@ -1,164 +1,163 @@
-
 import random, math
 import numpy as np
 import pandas as pd
 from numpy import linalg as LA
-
+random.seed(5) 
 
 def g(x):
     a = 1
-    return (1/(1+math.e**(-1*a*x)))
+    return 1/(1+np.exp(-x))
 
-df = pd.read_csv("iris.csv")
-Y = np.array(df["species"])
-X = np.array(df.drop("species",axis=1))
+def gp(x):
+    return (x*(1-x))
 
-#X = np.array([[1,2,3],[2,3,4],[4,5,6]])
-#Y = np.array([10,13,1])
+class Layer():
+    def __init__(self,nrow,ncol) -> None:
+        self.W = np.random.uniform(0,1,(nrow,ncol))
+        self.A = None
+        self.error = None
+        self.B = np.random.uniform(0,1,(ncol,))
+        self.bias_gradient = None 
+        self.weight_gradient = None
+
+class Layer_Output(Layer):
+    def __init__(self,nrow,ncol):
+        super().__init__(nrow,ncol)
+        self.a0 = None
+
+    def propagate_input(self,a0,f):
+        res = (a0 @ self.W) + self.B
+        self.A = f(res)
+        self.a0 = res
+
+    def propagate_deltas_output(self, previous_activation, Y):
+        resta = Y-self.A #self.A-Y
+        error = (resta.T @ resta)/len(Y)
+        error_gradient = (self.A - Y)*2/len(Y)
+        layer_gradient = error_gradient @ self.W.T
+        self.weight_gradient = previous_activation.T @ error_gradient
+        self.bias_gradient = np.sum(error_gradient, axis=0, keepdims=True)
+        self.error = error
+        return layer_gradient
+
+    def update_weights(self,alpha):
+        self.W = self.W - alpha*self.weight_gradient
+        self.B = self.B - alpha*self.bias_gradient
+
+
+class Hidden_Layers():
+    def __init__(self):
+        self.layers = []
+        self.ini = []
+    def add_layer(self,layer):
+        self.layers.append(layer)
+    def propagate_inputs(self,X,f):
+        a_0 = X
+        res = X
+        for layer in self.layers:
+            self.ini.append(a_0)
+            res = (a_0 @ layer.W) + layer.B  #res = (layer.W @ a_0) + layer.B
+            layer.A = f(res)
+            a_0 = layer.A
+        return a_0
+
+    def propagate_deltas_on_layers(self,upstream_gradient):
+        activation_derivative = gp
+        for layer,ini in reversed(list(zip(self.layers,self.ini))):
+            activation_gradient = activation_derivative(layer.A) * upstream_gradient
+            layer_gradient = activation_gradient @ layer.W.T
+            weight_gradient = ini.T @ activation_gradient
+            bias_gradient = np.sum(activation_gradient, axis=0, keepdims=True)
+            layer.weight_gradient = weight_gradient
+            layer.bias_gradient = bias_gradient
+            upstream_gradient = layer_gradient
+
+
+    def update_weights(self,alpha):
+        for layer in self.layers:
+            layer.W = layer.W - alpha*layer.weight_gradient
+            layer.B = layer.B - alpha*layer.bias_gradient
+
 
 class Network:
-    def __init__(self,nhidden,neurons_per_layer,g,epsilon,alpha) -> None:
-        self._hipotesis = None
-        self._W = []
-        self.A = []
-        self.W = []
-        self.B = []
-        self.per_layer = neurons_per_layer #[l0,l1,..,lf]
-        self.hidden = nhidden
-        self.g = g
-        self.errors = []
+    def __init__(self,neurons_per_layer : list[tuple[int,int]],g,epsilon : float,alpha : float) -> None:
+        self.hidden = len(neurons_per_layer)
+        self.neurons_per_layer = neurons_per_layer
         self.epsilon = epsilon
+        self.g = g
         self.alpha = alpha
+        self.layer_output = [] 
+        self.hidden_layers = Hidden_Layers()
+
+    def initialize_network(self):
+        for x,y in self.neurons_per_layer[:-1]:
+            self.hidden_layers.add_layer(Layer(x,y))
+        x,y = self.neurons_per_layer[-1]
+        self.layer_output = Layer_Output(x,y)
+
+    def propagate_inputs(self,X):
+        if len(self.hidden_layers.layers) != 0:
+            a0 = self.hidden_layers.propagate_inputs(X,self.g)
+        else:
+            a0 = X
+        self.layer_output.propagate_input(a0,self.g) 
+
+    def propagate_deltas_on_layers(self,grad):
+        self.hidden_layers.propagate_deltas_on_layers(grad)
 
     def train(self,it,X,Y):
+        self.initialize_network()
         for x in range(it):
-            print(x)
-            self.initialize_network(X,Y)
-            for row in X:
-                self.initilize_input_layer(row)
-                self.propagate_inputs()
-                self.propagate_deltas_output(Y)
-                self.propagate_deltas_on_layers(Y)
-                self.update_weights(X)
-            if LA.norm(self.errors[self.hidden]) < self.epsilon:
-                break
-        return self.W
+            self.forward_propagation(X)
+            self.backwards_propagation(X,Y)
+            self.update_weights()
+            #if LA.norm(self.layer_output.error) < self.epsilon:
+            #   print("Termina por epsilon")
+            #   break
 
-    def get_output(self, Y):
-        neurons = len(Y)
-        rows = len(Y[0])
-        out = []
-        for x in range(neurons):
-            out.append(np.array([random.random()]*rows))
-        return out
+    def predict(self,X):
+        self.forward_propagation(X)
+        return (self.layer_output.A)
 
-    def initialize_network(self,X,Y):
-        if self.hidden == 0:
-            a = np.array([random.random()]*self.per_layer[len(self.per_layer)-1])
-            self.W = [a]
-            self.A = [X,a]
-            self.B = [a]
-            self.errors = [a]
-        else:
-            a = np.array([random.random()]*self.per_layer[0])
-            self.W = [a]
-            self.A = [X]
-            self.B = [a]
-            self.errors = [a]
-            for x in range(1,len(self.per_layer)):
-                b = np.array([random.random()]*self.per_layer[x])
-                c = []
-                for u in range(0,self.per_layer[x]):
-                    c.append([random.random()]*self.per_layer[x-1])
-                d = np.array(c)
-                self.W.append(d)
-                #e = np.array([random.random()]*(self.per_layer[x]-1))
-                self.A.append(b)
-                self.B.append(b)
-                self.errors.append(d)
-            self.A.pop(len(self.A)-1)
-            self.A.append(self.get_output(Y))
+    def forward_propagation(self,X):
+        self.propagate_inputs(X)
 
-    def initilize_input_layer(self,X):
-        self.A[0] = X
+    def backwards_propagation(self,X,Y):
+        previous_act = X if len(self.hidden_layers.layers) == 0 else self.hidden_layers.layers[-1].A
+        layer_grad = self.layer_output.propagate_deltas_output(previous_act,Y)
+        self.propagate_deltas_on_layers(layer_grad)
 
-    def propagate_inputs(self):
-        for l in range(1,len(self.A)):
-            for x in range(0,len(self.W[l])):
-                Z = np.matmul(self.W[l][x], self.A[l-1]) + self.B[l][x]
-                if l == len(self.A)-1:
-                    
-                    for p in range(len(self.A[l])):
-                        self.A[l][p][x] = self.g(Z)
-                    #self.A[l][1][x] = self.g(Z)
-                    #self.A[l][2][x] = self.g(Z)
-                else:
-                    self.A[l][x] = self.g(Z)
+    def update_weights(self):
+        self.layer_output.update_weights(self.alpha)
+        self.hidden_layers.update_weights(self.alpha)
 
-    def propagate_deltas_output(self,Y):
-        last = self.per_layer[len(self.per_layer)-1]
-        #cambiado
-        for y in range(last):
-            for p in range(len(Y)):
-                self.errors[len(self.per_layer)-1][y] = np.matmul(np.transpose(self.A[len(self.A)-1][p]),(Y[p][y]-self.A[len(self.A)-1][p]))
-                self.B[len(self.per_layer)-1][y] = Y[p][y] - self.A[len(self.A)-1][p][y]
-
-    def propagate_deltas_on_layers(self,Y):
-        last = len(self.per_layer)-1  #cambiado
-        #d0 = Y[0]-self.A[last][0]
-        #d1 = Y[1]-self.A[last][1]
-        #d2 = Y[2]-self.A[last][2]
-        for x in range(len(self.per_layer)-2,1,-1):
-            for p in range(len(Y)):
-                a = np.multiply(self.A[x][p],(1-self.A[x][p]))
-                d0 = Y[p] - self.A[x][p]
-                b = np.matmul(d0 , np.transpose(self.W[x]))
-                c = np.multiply(a,b)
-                self.errors[x][p] = c
-
-    def update_weights(self,X):
-        last = len(self.per_layer)
-        for x in range(last-1):
-            if x == last-1:
-                print("----")
-                for p in range(len(Y)):
-                    self.W[x] += self.alpha*np.matmul(self.A[x][p],self.errors[x][p])
-            else:
-                self.W[x] = self.W[x] + self.alpha*np.matmul(self.A[x],self.errors[x])
-            #self.W[x] += self.alpha*np.multiply(self.A[x],self.errors[x])
-        
-#net = Network(2,[3,3,4,3],g,0.004,0.02)
-#net.initialize_network(X)
-#w = net.train(1000,X,Y)
-#print(w)
-#print(net.A)
 
 class Classifier:
     def __init__(self) -> None:
         self._hipotesis = None
 
-    def errors(self,predicted,actual):
-        tests_results = list(zip(predicted,actual))
-        relative_errors = [abs(predicted-actual)/actual for predicted, actual in tests_results]
-        ERM = sum(relative_errors)/len(tests_results)
-        return ERM
-
     def modify_Y_binary(self,Y,species):
         f = lambda x: 1 if x == species else 0
         np.vectorize()
         my_func = np.vectorize(f)
-        return np.array(my_func(Y))
+        array = np.array(my_func(Y))
+        return np.reshape(array, (len(array),1))
 
     def binary(self,df,species):
         Y = np.array(df["species"])
         X = np.array(df.drop("species",axis=1))
         Y = self.modify_Y_binary(Y,species)
-        layer_0 = 4 #ncolumnas de X
-        layer_j = 150 #nfilas de Y
-        network = Network(1, [4,5,150], g, 0.004, 0.02)
-        network.initialize_network(X,[Y])
-        w = network.train(20,X,[Y])
-        print(network.A)
+        #[(ncolumnas,x),(x,y),..,(y,1)]
+        network = Network([(4,4),(4,1)], g, 0.0004, 0.1)
+        w = network.train(1000,X,Y)
+        print(network.layer_output.A)
+        self.test(network.layer_output.A,Y)
+
+    def test(self,predictions,test):
+        RSS = sum(np.square(predictions - test))
+        TSS = sum(np.square(predictions - np.average(predictions)))
+        R2_coeff = 1 - RSS/TSS
+        print(R2_coeff)
 
     def modify_Y_multiclass(self,df):
         Y = np.array(df["species"])
@@ -170,16 +169,18 @@ class Classifier:
 
     def multiclass(self,df):
         X,Y = self.modify_Y_multiclass(df)
-        layer_0 = 4 #ncolumnas de X
-        layer_j = 150 #nfilas de Y
-        network = Network(1, [4,5,150], g, 0.004, 0.02)
-        network.initialize_network(X,Y)
-        w = network.train(20,X,Y)
-        print(network.A[len(network.A)-1])
-        print("DONE")
+        Y = np.array(Y)
+        z1 = np.reshape(Y[0].T, (120,1))
+        z2 = np.reshape(Y[1].T, (120,1))
+        z3 = np.reshape(Y[2].T, (120,1))
+        Y = np.reshape(np.array([z1,z2,z3]), (120,3) )
+        # X = (120,4)   Y=(120,3)
+        network = Network([(4,3)], g, 0.0004, 0.1)
+        network.train(100,X,Y)
+        print(network.layer_output.A)
+        self.test(network.layer_output.A,Y)
 
-
-df = pd.read_csv("iris.csv")
+df = pd.read_csv("iris_train.csv")
 Y = np.array(df["species"])
 X = np.array(df.drop("species",axis=1))
 
