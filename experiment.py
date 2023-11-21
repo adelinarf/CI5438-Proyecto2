@@ -1,6 +1,7 @@
 """Modulo principal con todos los experimentos realizados para obtener los datos para el informe"""
 from src.Classifier import Classifier
 import pandas as pd
+import numpy as np
 
 def test_binary_prediction(predictions, real, threshold):
     """Comprueba la precision del modelo binario comparando las predicciones 
@@ -17,10 +18,7 @@ def test_binary_prediction(predictions, real, threshold):
     
     false_positives = len(results[(results['prediction']==True) & (results['real']==False)])
     false_negatives = len(results[(results['prediction']==False) & (results['real']==True)])
-    max_conf = max(predictions)
-    min_conf = min(predictions)
-    avg_conf = sum(predictions)/len(predictions)
-    return [false_positives, false_negatives, max_conf, min_conf, avg_conf]
+    return [false_positives, false_negatives]
 
 # Entrenamiento de los binarios
 
@@ -45,10 +43,12 @@ for specie, alpha, hidden_layers in configurations:
     # Esto retorna una lista de listas, se aplana
     flatten_predictions = [item for sublist in predictions for item in sublist]
 
-    test_results = test_binary_prediction(flatten_predictions, real_y, 0.85)    
-    outputs.append([specie, alpha, hidden_layers, *test_results])
+    test_results = test_binary_prediction(flatten_predictions, real_y, 0.85)
+    errors = classifier.get_errors(np.array(flatten_predictions), np.array(real_y))
+    
+    outputs.append([specie, alpha, hidden_layers, *errors, *test_results])
 
 predictions_data = pd.DataFrame(outputs, 
-    columns=["specie", "alpha", "hidden layers",  "false positives", "false negatives", "max conf", "min conf", "avg conf"])
+    columns=["specie", "alpha", "hidden layers", "max error", "min error", "avg error", "R2 error", "false positives", "false negatives"])
 
 predictions_data.to_csv("experiment_results.csv", index=False)

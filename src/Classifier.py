@@ -34,10 +34,20 @@ class Classifier:
         network.train(iterations, X, Y)
         self.network = network
 
-    def test(self,predictions,test):
+    def test(self, predictions, test):
         RSS = sum(np.square(predictions - test))
         TSS = sum(np.square(predictions - np.average(predictions)))
         R2_coeff = 1 - RSS/TSS
+        return R2_coeff
+
+    def get_errors(self, predictions, test):
+        errors = np.abs(predictions - test)
+        max_error = max(errors)
+        min_error = min(errors)
+        avg_error = sum(errors)/len(errors)
+        R2_error = self.test(predictions, test)
+        return [max_error, min_error, avg_error, R2_error] 
+        
 
     def modify_Y_multiclass(self,df):
         Y = np.array(df["species"])
