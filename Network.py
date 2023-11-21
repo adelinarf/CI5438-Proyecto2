@@ -111,9 +111,9 @@ class Network:
             self.forward_propagation(X)
             self.backwards_propagation(X,Y)
             self.update_weights()
-            #if LA.norm(self.layer_output.error) < self.epsilon:
-            #   print("Termina por epsilon")
-            #   break
+            if LA.norm(self.layer_output.error) < self.epsilon:
+               print("Termina por epsilon")
+               break
 
     def predict(self,X):
         self.forward_propagation(X)
@@ -170,17 +170,26 @@ class Classifier:
     def multiclass(self,df):
         X,Y = self.modify_Y_multiclass(df)
         Y = np.array(Y)
+        print(Y[0].shape)
         z1 = np.reshape(Y[0].T, (120,1))
         z2 = np.reshape(Y[1].T, (120,1))
         z3 = np.reshape(Y[2].T, (120,1))
+        Z = np.append([z1],[z2,z3])
+        SALIDA = []
+        for x in range(len(z1)):
+            A = np.append([z1[x]],[z2[x],z3[x]])
+            SALIDA.append(A)
+        SALIDA = np.array(SALIDA)
+        print(SALIDA.shape,"salida")
+
         Y = np.reshape(np.array([z1,z2,z3]), (120,3) )
         # X = (120,4)   Y=(120,3)
-        network = Network([(4,3)], g, 0.0004, 0.1)
-        network.train(100,X,Y)
+        network = Network([(4,5),(5,6),(6,3)], g, 0.0004, 0.1)
+        network.train(10000,X,SALIDA)
         print(network.layer_output.A)
-        self.test(network.layer_output.A,Y)
+        self.test(network.layer_output.A,SALIDA)
 
-df = pd.read_csv("iris_train.csv")
+df = pd.read_csv("iris train data.csv")
 Y = np.array(df["species"])
 X = np.array(df.drop("species",axis=1))
 
