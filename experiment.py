@@ -8,7 +8,7 @@ def test_binary_prediction(predictions, real, threshold):
     con los datos reales
     predictions: Arreglo de predicciones
     real: Arreglo de datos reales
-    threshold: Umbral a partir del que se considera que una predicción binaria
+    threshold: Umbral classifier partir del que se considera que una predicción binaria
         es o no es la clase.
     """
     pred_and_real = list(zip(predictions, real))
@@ -55,7 +55,65 @@ predictions_data = pd.DataFrame(outputs,
              "test avg error", "test R2 error", "train max error", "train min error", 
              "train avg error", "train R2 error","false positives", "false negatives"])
 
-predictions_data.to_csv("experiment_results.csv", index=False)
+predictions_data.to_csv("binary_experiment_results.csv", index=False)
 
 
 # Entrenamiento del multiclase
+def calculate_success_and_failures(predictions, real):
+    """Comprueba la precision del modelo multiclase comparando las predicciones 
+    con los datos reales
+    predictions: Arreglo de predicciones
+    real: Arreglo de datos reales
+    """
+    pred_and_real = list(zip(predictions, real))
+    
+    results = list(map(lambda data: (data[0].argmax(), data[1].argmax()), pred_and_real))
+    results = pd.DataFrame(results, columns=['prediction', 'real'])
+        
+    success = len(results[(results['prediction'] == results['real'])])
+    failures = len(results[(results['prediction'] != results['real'])])
+    return [success, failures]
+
+alphas = [0.1, 0.01, 0.001]
+hidden_layers = [[], [(4, 4)], [(4, 10), (10, 4)]]
+
+configurations = [(alpha, hidden_layer) for alpha in alphas for hidden_layer in hidden_layers]
+
+# Obtener los errores del entrenamiento
+outputs = []
+
+for alpha, hidden_layers in configurations:
+    df = pd.read_csv("iris data\\iris train data.csv")
+    Y = np.array(df["species"])
+    X = np.array(df.drop("species",axis=1))
+    classifier = Classifier()    
+    train_errors = classifier.multiclass(df, alpha=alpha, hidden_layers=hidden_layers, iterations=10000)
+
+
+    # Obtener los errores del conjunto de pruebas
+    test_df = pd.read_csv("iris data\\iris test data.csv")
+    species = ["Iris-setosa", "Iris-versicolor", "Iris-virginica"]
+    def replace_in_binary(specie):    
+        pos = species.index(specie)
+        return_value = [0,0,0]
+        return_value[pos] = 1
+        return return_value
+        
+    real_y = list(map(replace_in_binary, test_df["species"]))
+    predictions = classifier.network.predict(test_df.drop("species", axis=1)).values.tolist()
+    test_errors = classifier.get_multiclass_errors(np.array(predictions), np.array(real_y))
+    test_errors.extend(train_errors)
+
+    # Calcular aciertos y fallos
+    metrics = calculate_success_and_failures(np.array(predictions), np.array(real_y))
+    results = [alpha, hidden_layers, *test_errors, *metrics]
+
+    outputs.append(results)
+
+predictions_data = pd.DataFrame(outputs, 
+    columns=["alpha", "hidden layers", "test max error", "test min error", 
+             "test avg error", "train max error", "train min error", 
+             "train avg error","test successes", "test failures"])
+
+predictions_data.to_csv("multiclass_experiment_results.csv", index=False)
+

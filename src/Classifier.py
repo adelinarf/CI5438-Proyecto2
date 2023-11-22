@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from Network import Network, g, gp
+from .Network import Network, g, gp
 
 class Classifier:
     def __init__(self) -> None:
@@ -70,20 +70,36 @@ class Classifier:
             A = np.append([z1[x]],[z2[x],z3[x]])
             SALIDA.append(A)
         SALIDA = np.array(SALIDA)
-        network = Network([(4,5), *hidden_layers, (6,3)], g, epsilon, alpha)
+        
+        network = Network([(4,4), *hidden_layers, (4,3)], g, epsilon, alpha)
+        
         network.train(iterations, X, SALIDA)
         self.network = network
+        
+        errors = self.get_multiclass_errors(network.layer_output.A, SALIDA)
+        return errors
+    
+    def get_multiclass_errors(self, predictions, real):
+        assert len(predictions) == len(real), "Las predicciones difieren en tamaño a los valores reales"
+        
+        errors = []
+        for i in range(len(real)):
+            # Buscar la clase a la que realmente pertenece el valor
+            
+            np.where(real[i]==1)[0][0]
+            class_index = np.where(real[i]==1)[0][0]
+            errors.append(abs(predictions[i][class_index]-real[i][class_index]))
+        
+        max_error = max(errors)
+        min_error = min(errors)
+        avg_error = sum(errors)/len(errors)        
+        return [max_error, min_error, avg_error]
 
 
-if __name__ == '__main__':
-    df = pd.read_csv("iris data\\iris train data.csv")
-    Y = np.array(df["species"])
-    X = np.array(df.drop("species",axis=1))
-    a = Classifier()    
-    a.multiclass(df)
-
-
-
-
-
-    print(w)
+# if __name__ == '__main__':
+#     df = pd.read_csv("iris data\\iris train data.csv")
+#     Y = np.array(df["species"])
+#     X = np.array(df.drop("species",axis=1))
+#     a = Classifier()    
+#     errors = a.multiclass(df)
+#     breakpoint()
