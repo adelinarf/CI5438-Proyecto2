@@ -114,6 +114,7 @@ class Network:
             if LA.norm(self.layer_output.error) < self.epsilon:
                print("Termina por epsilon")
                break
+        
 
     def predict(self,X):
         self.forward_propagation(X)

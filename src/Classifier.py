@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from .Network import Network, g, gp
+from Network import Network, g, gp
 
 class Classifier:
     def __init__(self) -> None:
@@ -32,7 +32,9 @@ class Classifier:
         
         network = Network([(4,4), *hidden_layers, (4,1)], g, epsilon, alpha)
         network.train(iterations, X, Y)
+        errors = self.get_errors(network.layer_output.A, Y)
         self.network = network
+        return errors
 
     def test(self, predictions, test):
         RSS = sum(np.square(predictions - test))
@@ -57,7 +59,7 @@ class Classifier:
         Y2 = self.modify_Y_binary(Y,"Iris-virginica")
         return X, [Y0,Y1,Y2]
 
-    def multiclass(self,df):
+    def multiclass(self, df, hidden_layers=[], iterations=5000, epsilon=0.0004, alpha=0.1):
         X,Y = self.modify_Y_multiclass(df)
         Y = np.array(Y)
         z1 = np.reshape(Y[0].T, (120,1))
@@ -68,26 +70,19 @@ class Classifier:
             A = np.append([z1[x]],[z2[x],z3[x]])
             SALIDA.append(A)
         SALIDA = np.array(SALIDA)
-        network = Network([(4,5),(5,6),(6,3)], g, 0.0004, 0.1)
-        network.train(10000,X,SALIDA)
+        network = Network([(4,5), *hidden_layers, (6,3)], g, epsilon, alpha)
+        network.train(iterations, X, SALIDA)
         self.network = network
 
 
 if __name__ == '__main__':
-    # df = pd.read_csv("iris data\\iris train data.csv")
-    # Y = np.array(df["species"])
-    # X = np.array(df.drop("species",axis=1))
+    df = pd.read_csv("iris data\\iris train data.csv")
+    Y = np.array(df["species"])
+    X = np.array(df.drop("species",axis=1))
+    a = Classifier()    
+    a.multiclass(df)
 
-    # a = Classifier()
-    # #a.binary(df,"Iris-setosa")
-    # a.multiclass(df)
 
-    X = np.array([[0, 0, 0], [1, 1, 1]])
-    Y = np.array([0, 1]).reshape((2, 1))
-
-    network = Network([(3,2),(2,1)], g, 0.0004, 0.1)
-    network.train(1000, X, Y)
-    w = network.predict([[1, 1, 1], [0, 0, 0]])
 
 
 
