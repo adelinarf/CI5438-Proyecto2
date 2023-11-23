@@ -30,6 +30,11 @@ def test_multiclass_prediction(predictions,actual,threshold):
     return falses
 
 
+def accuracy(false_positives,false_negatives,total):
+    # total - falso / total
+    return (total - (false_positives+false_negatives))/total
+
+
 def train_test_binary(train_df,test_df,specie,alpha,hidden_layers,classifier,outputs):
     classifier.binary(train_df, specie, alpha=alpha, hidden_layers=hidden_layers)
 
@@ -41,6 +46,9 @@ def train_test_binary(train_df,test_df,specie,alpha,hidden_layers,classifier,out
     flatten_predictions = [item for sublist in predictions for item in sublist]
 
     test_results = test_binary_prediction(flatten_predictions, real_y, 0.85)
+    accuracy_ = accuracy(test_results[0],test_results[1],len(test_df))
+    print("Accuracy =",accuracy_)
+
     errors = classifier.get_errors(np.array(flatten_predictions), np.array(real_y))
 
     iteration_error = classifier.network.errors
@@ -72,6 +80,9 @@ def train_test_multiclass(train_df,test_df,specie,alpha,hidden_layers,classifier
     Y = np.array(Y)
 
     test_results_multiclass = test_multiclass_prediction(predictions,real_y,0.85)
+    for x in range(len(test_results_multiclass)):
+        accuracy_ = accuracy(test_results_multiclass[x][0],test_results_multiclass[x][1],len(test_df))
+        print(f'Accuracy Multiclass {x} = {accuracy_}')
     errors_multiclass = classifier.get_errors_multiclass(predictions,Y)   
 
     iteration_error = classifier.network.errors
@@ -115,6 +126,7 @@ for specie, alpha, hidden_layers in configurations:
 
     outputs = train_test_binary(train_df,test_df,specie,alpha,hidden_layers,classifier,outputs)
     outputs_multiclass = train_test_multiclass(train_df,test_df,specie,alpha,hidden_layers,classifier,outputs_multiclass)
+    break
 
 predictions_data = pd.DataFrame(outputs, 
     columns=["specie", "alpha", "hidden layers", "max error", "min error", "avg error", "R2 error", "false positives", "false negatives"])
