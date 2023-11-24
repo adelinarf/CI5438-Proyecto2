@@ -63,10 +63,10 @@ def train_test_binary(train_df,test_df,specie,alpha,hidden_layers,classifier,out
     plt.clf()
 
     outputs.append([specie, alpha, hidden_layers, *errors, *test_results])
-    return outputs
+    return outputs, accuracy_
 
 
-def train_test_multiclass(train_df,test_df,specie,alpha,hidden_layers,classifier,outputs_multiclass):
+def train_test_multiclass(train_df,test_df,alpha,hidden_layers,classifier,outputs_multiclass):
     classifier.multiclass(train_df, alpha=alpha, hidden_layers=hidden_layers)
 
     predictions = classifier.network.predict(test_df.drop("species", axis=1))
@@ -80,8 +80,9 @@ def train_test_multiclass(train_df,test_df,specie,alpha,hidden_layers,classifier
     Y = np.array(Y)
 
     test_results_multiclass = test_multiclass_prediction(predictions,real_y,0.85)
+    accuracy_ = []
     for x in range(len(test_results_multiclass)):
-        accuracy_ = accuracy(test_results_multiclass[x][0],test_results_multiclass[x][1],len(test_df))
+        accuracy_.append(accuracy(test_results_multiclass[x][0],test_results_multiclass[x][1],len(test_df)))
         print(f'Accuracy Multiclass {x} = {accuracy_}')
     errors_multiclass = classifier.get_errors_multiclass(predictions,Y)   
 
@@ -101,32 +102,110 @@ def train_test_multiclass(train_df,test_df,specie,alpha,hidden_layers,classifier
     plt.savefig("plots/multiclass_{}_{}.jpg".format(alpha,hidden_layers), dpi=300)
     plt.clf()
 
-    outputs_multiclass[0].append([specie, alpha, hidden_layers, *list(errors_multiclass[0]), *test_results_multiclass[0]])
-    outputs_multiclass[1].append([specie, alpha, hidden_layers, *list(errors_multiclass[1]), *test_results_multiclass[1]])
-    outputs_multiclass[2].append([specie, alpha, hidden_layers, *list(errors_multiclass[2]), *test_results_multiclass[2]])
-    return outputs_multiclass
+    outputs_multiclass[0].append([alpha, hidden_layers, *list(errors_multiclass[0]), *test_results_multiclass[0]])
+    outputs_multiclass[1].append([alpha, hidden_layers, *list(errors_multiclass[1]), *test_results_multiclass[1]])
+    outputs_multiclass[2].append([alpha, hidden_layers, *list(errors_multiclass[2]), *test_results_multiclass[2]])
+    return outputs_multiclass, accuracy_
 
+
+def plot_accuracy_binary():
+    for s in d.keys():
+        for h in d[s].keys():
+            alphas_ = []
+            accurate = []
+            for a in d[s][h].items():
+                alphas_.append(a[0])
+                accurate.append(a[1][0])
+            plt.bar(alphas_, accurate, width = 0.1,label=s+" Ocultas="+h)
+    plt.legend(bbox_to_anchor=(1.02, 1.1), loc='upper left', borderaxespad=0)
+    plt.xlabel('alpha')
+    plt.ylabel('Exactitud') 
+    plt.title("Exactitud de Clasificador Binario")
+    plt.savefig("plots/Exactitud_Binaria.jpg", dpi=300,bbox_inches='tight')
+    plt.clf()
+
+def plot_accuracy_multiclass():
+    for h in ac.keys():
+        alphas_ = []
+        accurate_0 = []
+        accurate_1 = []
+        accurate_2 = []
+        for a in ac[h].items():
+            alphas_.append(a[0])
+            accurate_0.append(a[1][0][0])
+            accurate_1.append(a[1][0][1])
+            accurate_2.append(a[1][0][2])
+        plt.bar(alphas_,accurate_0, width = 0.1,label="Iris-setosa Ocultas="+h)
+        plt.bar(alphas_,accurate_1, width = 0.1,label="Iris-virginica Ocultas="+h)
+        plt.bar(alphas_,accurate_2, width = 0.1,label="Iris-versicolor Ocultas="+h)
+    plt.legend(bbox_to_anchor=(1.02, 1.1), loc='upper left', borderaxespad=0)
+    plt.xlabel('alpha')
+    plt.ylabel('Exactitud') 
+    plt.title("Exactitud de Clasificador Multiclase")
+    plt.savefig("plots/Exactitud_Multiclase.jpg", dpi=300,bbox_inches='tight')
+    plt.clf()
 
 # Entrenamiento de los binarios
 
 species = ['Iris-setosa', 'Iris-virginica','Iris-versicolor']
-alphas = [0.1, 0.01, 0.001]
-hidden_layers = [[], [4], [5,6,7]]
+
+def file_name(specie,n):
+    if n==0:
+        #train
+        return 'iris data\\only_'+specie+"_train.csv"
+    else:
+        #test
+        return 'iris data\\only_'+specie+"_test.csv"
+
+
+alphas = [2,0.5,0.1, 0.01, 0.001, 0.0001]
+hidden_layers = [[], [4], [5],[10],[20],[5,6],[1,5],[10,8]]
 
 configurations = [(specie, alpha, hidden_layer) for specie in species for alpha in alphas for hidden_layer in hidden_layers]
+configurations2 = [(alpha, hidden_layer) for alpha in alphas for hidden_layer in hidden_layers]
 
+d = {}
+for specie in species:
+    d[specie] = {}
+    for layer in hidden_layers:
+        d[specie][str(layer)] = {}
+        for a in alphas:
+            d[specie][str(layer)][a] = []
+ac = {}
+for layer in hidden_layers:
+    ac[str(layer)] = {}
+    for a in alphas:
+        ac[str(layer)][a] = []
 
 outputs = []
 outputs_multiclass = [[],[],[]]
+
+
 for specie, alpha, hidden_layers in configurations:
+    print(specie,alpha,hidden_layers)
+    classifier = Classifier()
+  
+    train_df = pd.read_csv(file_name(specie,0))
+    test_df = pd.read_csv(file_name(specie,1))
+
+    outputs, accuracy_ = train_test_binary(train_df,test_df,specie,alpha,hidden_layers,classifier,outputs)
+    d[specie][str(hidden_layers)][alpha].append(accuracy_)
+
+plot_accuracy_binary()
+
+#Entrenamiento Multiclase
+
+for alpha, hidden_layers in configurations2:
+    print(alpha,hidden_layers)
     classifier = Classifier()
   
     train_df = pd.read_csv("iris data\\iris train data.csv")
     test_df = pd.read_csv("iris data\\iris test data.csv")
 
-    outputs = train_test_binary(train_df,test_df,specie,alpha,hidden_layers,classifier,outputs)
-    outputs_multiclass = train_test_multiclass(train_df,test_df,specie,alpha,hidden_layers,classifier,outputs_multiclass)
-    break
+    outputs_multiclass, accuracy_ = train_test_multiclass(train_df,test_df,alpha,hidden_layers,classifier,outputs_multiclass)
+    ac[str(hidden_layers)][alpha].append(accuracy_)
+
+plot_accuracy_multiclass()
 
 predictions_data = pd.DataFrame(outputs, 
     columns=["specie", "alpha", "hidden layers", "max error", "min error", "avg error", "R2 error", "false positives", "false negatives"])
@@ -134,16 +213,16 @@ predictions_data = pd.DataFrame(outputs,
 predictions_data.to_csv("experiment_results.csv", index=False)
 
 predictions_class_1 = pd.DataFrame(outputs_multiclass[0], 
-    columns=["specie", "alpha", "hidden layers", "max error", "min error", "avg error", "false positives", "false negatives"])
+    columns=["alpha", "hidden layers", "max error", "min error", "avg error", "false positives", "false negatives"])
 
 predictions_class_1.to_csv("experiment_results_multiclass_0.csv", index=False)
 
 predictions_class_2 = pd.DataFrame(outputs_multiclass[1], 
-    columns=["specie", "alpha", "hidden layers", "max error", "min error", "avg error", "false positives", "false negatives"])
+    columns=["alpha", "hidden layers", "max error", "min error", "avg error", "false positives", "false negatives"])
 
 predictions_class_2.to_csv("experiment_results_multiclass_1.csv", index=False)
 
 predictions_class_3 = pd.DataFrame(outputs_multiclass[2], 
-    columns=["specie", "alpha", "hidden layers", "max error", "min error", "avg error", "false positives", "false negatives"])
+    columns=["alpha", "hidden layers", "max error", "min error", "avg error", "false positives", "false negatives"])
 
 predictions_class_3.to_csv("experiment_results_multiclass_2.csv", index=False)
