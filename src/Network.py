@@ -13,6 +13,7 @@ def gp(x):
 
 class Layer():
     def __init__(self,nrow,ncol) -> None:
+        
         self.W = np.random.uniform(0,1,(nrow,ncol))
         self.A = None
         self.error = None
