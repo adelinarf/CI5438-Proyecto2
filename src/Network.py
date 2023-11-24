@@ -88,6 +88,7 @@ class Network:
         self.alpha = alpha
         self.layer_output = [] 
         self.hidden_layers = Hidden_Layers()
+        self.errors = []
 
     def initialize_network(self):
         for x,y in self.neurons_per_layer[:-1]:
@@ -111,6 +112,7 @@ class Network:
             self.forward_propagation(X)
             self.backwards_propagation(X,Y)
             self.update_weights()
+            self.errors.append(self.layer_output.error)
             if LA.norm(self.layer_output.error) < self.epsilon:
                print("Termina por epsilon")
                break

@@ -20,8 +20,7 @@ class Classifier:
         
         df: Dataframe con las flores
         specie: Especie con la que se entrenará el clasificador
-        hidden_layers: Lista de tuplas donde cada tupla representa la cantidad de conexiones
-            que entran y salen de cada capa
+        hidden_layers: Lista de numero de neuronas por cada capa oculta
         iterations: Cantidad de iteraciones durante el entrenamiento
         epsilon: Condicion de parada para el entrenamiento
         alpha: Constante de aprendizaje
@@ -29,8 +28,13 @@ class Classifier:
         Y = np.array(df["species"])
         X = np.array(df.drop("species",axis=1))
         Y = self.modify_Y_binary(Y,specie)
-        
-        network = Network([(4,4), *hidden_layers, (4,1)], g, epsilon, alpha)
+        prev = 4
+        tuples = []
+        for neuron in hidden_layers:
+            tuples.append((prev,neuron))
+            prev = neuron
+        tuples.append((prev,1))
+        network = Network(tuples, g, epsilon, alpha)
         network.train(iterations, X, Y)
         errors = self.get_errors(network.layer_output.A, Y)
         self.network = network
@@ -49,6 +53,14 @@ class Classifier:
         avg_error = sum(errors)/len(errors)
         R2_error = self.test(predictions, test)
         return [max_error, min_error, avg_error, R2_error] 
+
+    def get_errors_multiclass(self, predictions, test):
+        errors = np.abs(predictions - test)
+        max_error = np.max(errors,axis=0)
+        min_error = np.min(errors,axis=0)
+        avg_error = np.sum(errors,axis=0)/len(errors)
+        R2_error = self.test(predictions, test)
+        return [max_error, min_error, avg_error]
         
 
     def modify_Y_multiclass(self,df):
@@ -70,10 +82,14 @@ class Classifier:
             A = np.append([z1[x]],[z2[x],z3[x]])
             SALIDA.append(A)
         SALIDA = np.array(SALIDA)
-        
-        network = Network([(4,4), *hidden_layers, (4,3)], g, epsilon, alpha)
-        
-        network.train(iterations, X, SALIDA)
+        prev = 4
+        tuples = []
+        for neuron in hidden_layers:
+            tuples.append((prev,neuron))
+            prev = neuron
+        tuples.append((prev,3))
+        network = Network(tuples, g, epsilon, alpha)
+        network.train(iterations,X,SALIDA)
         self.network = network
         
         errors = self.get_multiclass_errors(network.layer_output.A, SALIDA)
