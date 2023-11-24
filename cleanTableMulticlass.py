@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
-X1 = pd.read_csv("experiment_results_multiclass_0.csv")
-X2 = pd.read_csv("experiment_results_multiclass_1.csv")
-X3 = pd.read_csv("experiment_results_multiclass_2.csv")
+X1 = pd.read_csv("Resultados de los experimentos/experiment_results_multiclass_0.csv")
+X2 = pd.read_csv("Resultados de los experimentos/experiment_results_multiclass_1.csv")
+X3 = pd.read_csv("Resultados de los experimentos/experiment_results_multiclass_2.csv")
 
 alphas = [2,0.5,0.1, 0.01, 0.001, 0.0001]
 

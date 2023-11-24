@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-X = pd.read_csv("experiment_results.csv")
+X = pd.read_csv("Resultados de los experimentos/experiment_results.csv")
 
 clean = np.array(X.drop("R2 error",axis=1))
 
@@ -33,6 +33,6 @@ p2 = pd.DataFrame(C2,
 p3 = pd.DataFrame(C3, 
     columns=["clase", "alpha", "max error", "min error", "avg error", "false positives", "false negatives"])
 
-p1.to_csv("setosa-resumen.csv", index=False)
-p2.to_csv("virginica-resumen.csv", index=False)
-p3.to_csv("versicolor-resumen.csv", index=False)
+p1.to_csv("Resultados de los experimentos/setosa-resumen.csv", index=False)
+p2.to_csv("Resultados de los experimentos/virginica-resumen.csv", index=False)
+p3.to_csv("Resultados de los experimentos/versicolor-resumen.csv", index=False)
